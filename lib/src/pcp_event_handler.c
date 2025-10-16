@@ -825,12 +825,13 @@ static pcp_server_state_e handle_server_ping(pcp_server_t *s) {
     while ((msg = get_ping_msg(s)) != NULL) {
         msg->retry_count = 0;
 
-        PCP_LOG(PCP_LOGLVL_INFO, "Pinging PCP server at address %s",
+        fprintf(stderr, "[GADB:pcp_event_handler.c:%s] Pinging PCP server at address %s\n", __func__,
                 s->pcp_server_paddr);
 
         if (handle_flow_event(msg, fev_send, NULL) != pfs_failed) {
             s->next_timeout = msg->timeout;
 
+        fprintf(stderr, "[GADB:pcp_event_handler.c:%s] Go to pss_wait_ping_resp\n", __func__);
             PCP_LOG_END(PCP_LOGLVL_DEBUG);
             return pss_wait_ping_resp;
         }
@@ -843,6 +844,7 @@ static pcp_server_state_e handle_server_ping(pcp_server_t *s) {
 static pcp_server_state_e handle_wait_ping_resp_timeout(pcp_server_t *s) {
     if (++s->ping_count >= PCP_MAX_PING_COUNT) {
         gettimeofday(&s->next_timeout, NULL);
+        fprintf(stderr, "[GADB:pcp_event_handler.c:%s] ++s->ping_count >= PCP_MAX_PING_COUNT\n", __func__);
         return pss_set_not_working;
     }
 
@@ -854,6 +856,7 @@ static pcp_server_state_e handle_wait_ping_resp_timeout(pcp_server_t *s) {
     if (handle_flow_event(s->ping_flow_msg, fev_flow_timedout, NULL) ==
         pfs_failed) {
         gettimeofday(&s->next_timeout, NULL);
+        fprintf(stderr, "[GADB:pcp_event_handler.c:%s] pfs_failed\n", __func__);
         return pss_set_not_working;
     }
 
@@ -875,6 +878,7 @@ static pcp_server_state_e handle_wait_ping_resp_recv(pcp_server_t *s) {
         res = pss_send_all_msgs;
         break;
     case pss_wait_io:
+        fprintf(stderr, "[GADB:pcp_event_handler.c:%s] pss_wait_i\n", __func__);
         res = pss_wait_ping_resp;
         break;
     default:
@@ -895,9 +899,9 @@ static pcp_server_state_e handle_version_negotiation(pcp_server_t *s) {
         || (s->next_version < PCP_MIN_SUPPORTED_VERSION)
 #endif
     ) {
-        PCP_LOG(PCP_LOGLVL_WARN,
+        fprintf(stderr,
                 "Version negotiation failed for PCP server %s. "
-                "Disabling sending PCP messages to this server.",
+                "Disabling sending PCP messages to this server.\n",
                 s->pcp_server_paddr);
 
         return pss_set_not_working;
@@ -935,11 +939,13 @@ static pcp_server_state_e handle_version_negotiation(pcp_server_t *s) {
 
     handle_flow_event(ping_msg, fev_send, NULL);
     if (ping_msg->state == pfs_failed) {
+        fprintf(stderr, "[GADB:pcp_event_handler.c:%s] ping_msg->state == pfs_failed\n", __func__);
         return pss_set_not_working;
     }
 
     s->next_timeout = ping_msg->timeout;
 
+    fprintf(stderr, "[GADB:pcp_event_handler.c:%s] ending\n", __func__);
     return pss_wait_ping_resp;
 }
 
@@ -982,10 +988,10 @@ static pcp_server_state_e handle_wait_io_receive_msg(pcp_server_t *s) {
         s->next_version = msg->recv_version;
         return pss_version_negotiation;
     case PCP_RES_ADDRESS_MISMATCH:
-        PCP_LOG(PCP_LOGLVL_WARN,
+        fprintf(stderr,
                 "There is PCP-unaware NAT present "
                 "between client and PCP server %s. "
-                "Sending of PCP messages was disabled.",
+                "Sending of PCP messages was disabled.\n",
                 s->pcp_server_paddr);
         gettimeofday(&s->next_timeout, NULL);
         return pss_set_not_working;
@@ -1029,9 +1035,9 @@ static pcp_server_state_e handle_server_set_not_working(pcp_server_t *s) {
     struct flow_iterator_data d = {s, fev_failed};
 
     PCP_LOG(PCP_LOGLVL_DEBUG, "Entered function %s", __FUNCTION__);
-    PCP_LOG(PCP_LOGLVL_WARN,
+    fprintf(stderr,
             "PCP server %s failed to respond. "
-            "Disabling sending of PCP messages to this server for %d minutes.",
+            "Disabling sending of PCP messages to this server for %d minutes.\n",
             s->pcp_server_paddr, PCP_SERVER_DISCOVERY_RETRY_DELAY / 60);
 
     pcp_db_foreach_flow(s->ctx, flow_send_event_iter, &d);
@@ -1050,16 +1056,18 @@ static pcp_server_state_e handle_server_not_working(pcp_server_t *s) {
         pcp_recv_msg_t *msg = &s->ctx->msg;
         pcp_flow_t *f;
 
-        PCP_LOG(PCP_LOGLVL_INFO,
+        fprintf(stderr,
                 "Received PCP packet from server at %s, size %d, result_code "
-                "%d, epoch %d",
+                "%d, epoch %d\n",
                 s->pcp_server_paddr, msg->pcp_msg_len, msg->recv_result,
                 msg->recv_epoch);
 
         switch (msg->recv_result) {
         case PCP_RES_UNSUPP_VERSION:
+            fprintf(stderr, "[GADB:pcp_event_handler.c:%s] PCP_RES_UNSUPP_VERSION\n", __func__);
             return pss_not_working;
         case PCP_RES_ADDRESS_MISMATCH:
+            fprintf(stderr, "[GADB:pcp_event_handler.c:%s] PCP_RES_ADDRESS_MISMATCH\n", __func__);
             return pss_not_working;
         }
 
@@ -1106,9 +1114,9 @@ static pcp_server_state_e ignore_events(pcp_server_t *s) {
 
 // LCOV_EXCL_START
 static pcp_server_state_e log_unexepected_state_event(pcp_server_t *s) {
-    PCP_LOG(PCP_LOGLVL_PERR,
+    fprintf(stderr,
             "Event happened in the state %d on PCP server %s"
-            " and there is no event handler defined.",
+            " and there is no event handler defined.\n",
             s->server_state, s->pcp_server_paddr);
 
     gettimeofday(&s->next_timeout, NULL);

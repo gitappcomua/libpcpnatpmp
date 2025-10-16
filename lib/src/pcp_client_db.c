@@ -367,19 +367,25 @@ pcp_errno pcp_db_foreach_server(pcp_ctx_t *ctx, pcp_db_server_iterate f,
     uint32_t indx;
     int ret = PCP_ERR_MAX_SIZE;
 
+fprintf(stderr, "[GADB:libpcp:%s] BEGIN \n", __func__);
     PCP_LOG_BEGIN(PCP_LOGLVL_DEBUG);
 
     assert(ctx && f);
 
     for (indx = 0; indx < ctx->pcp_db.pcp_servers_length; ++indx) {
+fprintf(stderr, "[GADB:libpcp:%s] Iterate server -%i \n", __func__, indx);
         if (ctx->pcp_db.pcp_servers[indx].server_state == pss_unitialized) {
+fprintf(stderr, "[GADB:libpcp:%s] Iterate server -%i CONTINUE\n", __func__, indx);
             continue;
         }
         if ((*f)(ctx->pcp_db.pcp_servers + indx, data)) {
+fprintf(stderr, "[GADB:libpcp:%s] Iterate server -%i PCP_ERR_SUCCESS\n", __func__, indx);
             ret = PCP_ERR_SUCCESS;
             break;
         }
     }
+
+fprintf(stderr, "[GADB:libpcp:%s] END \n", __func__);
     PCP_LOG_END(PCP_LOGLVL_DEBUG);
     return ret;
 }

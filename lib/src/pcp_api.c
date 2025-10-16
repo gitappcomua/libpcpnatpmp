@@ -338,10 +338,11 @@ static int have_same_af(struct in6_addr *addr1, struct in6_addr *addr2) {
 static int chain_and_assign_src_ip(pcp_server_t *s, void *data) {
     struct caasi_data *d = (struct caasi_data *)data;
     struct flow_key_data kd = *d->kd;
-
+fprintf(stderr, "[GADB:libpcp:%s] BEGIN \n", __func__);
     PCP_LOG_BEGIN(PCP_LOGLVL_DEBUG);
 
     if (s->server_state == pss_not_working) {
+fprintf(stderr, "[GADB:libpcp:%s] pss_not_working \n", __func__);
         PCP_LOG_END(PCP_LOGLVL_DEBUG);
         return 0;
     }
@@ -351,15 +352,18 @@ static int chain_and_assign_src_ip(pcp_server_t *s, void *data) {
     if (IPV6_IS_ADDR_ANY(&kd.src_ip)) {
         memcpy(&kd.src_ip, s->src_ip, sizeof(kd.src_ip));
         kd.scope_id = s->pcp_scope_id;
+fprintf(stderr, "[GADB:libpcp:%s] IPV6_IS_ADDR_ANY \n", __func__);
     }
 
     // check address family
     if (!have_same_af(&kd.src_ip, (struct in6_addr *)s->src_ip)) {
+fprintf(stderr, "[GADB:libpcp:%s] check address family \n", __func__);
         return 0;
     }
 
     // check matching scope
     if (kd.scope_id != s->pcp_scope_id) {
+fprintf(stderr, "[GADB:libpcp:%s] check matching scope \n", __func__);
         return 0;
     }
 
@@ -367,16 +371,21 @@ static int chain_and_assign_src_ip(pcp_server_t *s, void *data) {
     memcpy(&kd.nonce, &s->nonce, sizeof(kd.nonce));
     f = pcp_create_flow(s, &kd);
     if (!f) {
+fprintf(stderr, "[GADB:libpcp:%s] Error pcp_create_flow \n", __func__);
         PCP_LOG_END(PCP_LOGLVL_DEBUG);
         return 1;
     }
 #ifdef PCP_SADSCP
+fprintf(stderr, "[GADB:libpcp:%s] PCP_SADSCP is defined \n", __func__);
     if (kd.operation == PCP_OPCODE_SADSCP) {
+fprintf(stderr, "[GADB:libpcp:%s] (kd.operation == PCP_OPCODE_SADSCP) \n", __func__);
         f->sadscp.toler_fields = d->toler_fields;
         if (d->app_name) {
+fprintf(stderr, "[GADB:libpcp:%s] d->app_name==true \n", __func__);
             f->sadscp.app_name_length = strlen(d->app_name);
             f->sadscp_app_name = strdup(d->app_name);
         } else {
+fprintf(stderr, "[GADB:libpcp:%s] d->app_name==false \n", __func__);
             f->sadscp.app_name_length = 0;
             f->sadscp_app_name = NULL;
         }
@@ -385,8 +394,10 @@ static int chain_and_assign_src_ip(pcp_server_t *s, void *data) {
     init_flow(f, s, d->lifetime, d->ext_addr);
     f->user_data = d->userdata;
     if (d->fprev) {
+fprintf(stderr, "[GADB:libpcp:%s] d->fprev==true \n", __func__);
         d->fprev->next_child = f;
     } else {
+fprintf(stderr, "[GADB:libpcp:%s] d->fprev==false \n", __func__);
         d->ffirst = f;
     }
     d->fprev = f;
@@ -403,10 +414,11 @@ pcp_flow_t *pcp_new_flow(pcp_ctx_t *ctx, struct sockaddr *src_addr,
     struct sockaddr_storage tmp_ext_addr;
 
     PCP_LOG_BEGIN(PCP_LOGLVL_DEBUG);
-
+fprintf(stderr, "[GADB:libpcp] BEGIN\n");
     memset(&kd, 0, sizeof(kd));
 
     if ((!src_addr) || (!ctx)) {
+fprintf(stderr, "[GADB:libpcp] D1\n");
         return NULL;
     }
     pcp_fill_in6_addr(&kd.src_ip, &kd.map_peer.src_port, &kd.scope_id,
@@ -470,6 +482,7 @@ pcp_flow_t *pcp_new_flow(pcp_ctx_t *ctx, struct sockaddr *src_addr,
             break;
         default:
             PCP_LOG(PCP_LOGLVL_PERR, "%s", "Unsupported address family.");
+fprintf(stderr, "[GADB:libpcp] D2\n");
             return NULL;
         }
         ext_addr = (struct sockaddr *)&tmp_ext_addr;
@@ -487,6 +500,7 @@ pcp_flow_t *pcp_new_flow(pcp_ctx_t *ctx, struct sockaddr *src_addr,
                             // happened
         pcp_delete_flow(data.ffirst);
         PCP_LOG_END(PCP_LOGLVL_DEBUG);
+fprintf(stderr, "[GADB:libpcp] D3\n");
         return NULL;
     }
 
